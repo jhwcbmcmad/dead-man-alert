@@ -10,8 +10,8 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
-ENV_KEY=${1}
-ENV_JSON=${PROJECT_PATH}/env/${ENV_KEY}/env.json
+ENV_NAME=${1}
+ENV_JSON=${PROJECT_PATH}/env/${ENV_NAME}/env.json
 
 TIMESTAMP=`date +%s`
 
