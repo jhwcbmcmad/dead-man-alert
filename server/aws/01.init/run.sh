@@ -24,6 +24,7 @@ cd ${TMP_PATH}
 rm -rf venv
 python3 -m venv venv
 source venv/bin/activate
+pip install --upgrade pip
 pip install --upgrade -r ${MY_PATH}/requirements.txt
 
 python3 ${MY_PATH}/_run.py \

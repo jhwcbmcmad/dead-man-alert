@@ -1,5 +1,6 @@
 import boto3
 import futsu.json
+import futsu.storage
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -117,12 +118,48 @@ def create_server_main_private_key(env_data):
         Key=object_key
     )
 
+def create_server_main_public_key(env_data):
+    ENV_KEY = env_data['ENV_KEY']
+    AWS_REGION = env_data['AWS_REGION']
+
+    public_key_remote_path = 's3://dead-man-alert-{ENV_KEY}-perm/server/public_key'
+    public_key_remote_path = public_key_remote_path.format(ENV_KEY=ENV_KEY)
+    s3_client = boto3.client('s3')
+    if futsu.aws.s3.is_blob_exist(public_key_remote_path,s3_client): return
+
+    kms_client = boto3.client('kms',region_name=AWS_REGION)
+
+    private_key_enc_remote_path = 's3://dead-man-alert-{ENV_KEY}-perm/server/private_key.enc'
+    private_key_enc_remote_path = private_key_enc_remote_path.format(ENV_KEY=ENV_KEY)
+    private_key_enc_bytes = futsu.aws.s3.blob_to_bytes(private_key_enc_remote_path, s3_client)
+    private_key_bytes = kms_client.decrypt(CiphertextBlob=private_key_enc_bytes)['Plaintext']
+    private_key = serialization.load_pem_private_key(
+        private_key_bytes,
+        password=None,
+        backend=default_backend(),
+    )
+
+    public_key = private_key.public_key()
+    public_key_bytes = public_key.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    
+    futsu.aws.s3.bytes_to_blob(
+        dst = public_key_remote_path,
+        bytes = public_key_bytes,
+        client = s3_client
+    )
+    bucket_name, object_key = futsu.aws.s3.prase_blob_path(public_key_remote_path)
+    boto3.resource('s3').ObjectAcl(bucket_name, object_key).put(ACL='public-read')
+
 def main(env_json_filename):
     env_data = futsu.json.file_to_data(env_json_filename)
 
     create_kms_key(env_data)
     create_s3_bucket(env_data)
     create_server_main_private_key(env_data)
+    create_server_main_public_key(env_data)
 
 if __name__ == "__main__":
     import argparse
