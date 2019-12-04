@@ -1,0 +1,33 @@
+service: dead-man-alert-clock
+
+frameworkVersion: ">=1.57.0 <2.0.0"
+
+provider:
+  name: aws
+  runtime: python3.7
+  environment:
+    ENV_KEY:    ${env:DMA_ENV_KEY}
+    SOURCE:     ${env:DMA_SOURCE}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - s3:*
+      Resource:
+        - arn:aws:s3:::dead-man-alert-${env:ENV_KEY}-perm
+        - arn:aws:s3:::dead-man-alert-${env:ENV_KEY}-perm/*
+        - arn:aws:s3:::dead-man-alert-${env:ENV_KEY}-tmp
+        - arn:aws:s3:::dead-man-alert-${env:ENV_KEY}-tmp/*
+
+functions:
+  schedule_server_clock_key_rotate:
+    name: schedule_server_clock_key_rotate_${env:VERSION}
+    handler: deadmanalert.aws.schedule_server_clock_key_rotate.lambda_handler
+    events:
+      - schedule: cron(59 * * * ? *)
+    memorySize: 128
+  schedule_server_clock_prove_rotate:
+    name: schedule_server_clock_prove_rotate_${env:VERSION}
+    handler: deadmanalert.aws.schedule_server_clock_prove_rotate.lambda_handler
+    events:
+      - schedule: cron(59 * * * ? *)
+    memorySize: 128
